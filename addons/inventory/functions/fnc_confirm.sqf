@@ -22,6 +22,13 @@ private _object = _display getVariable QGVAR(object);
 private _cargo  = _display getVariable QGVAR(cargo);
 _cargo params ["_itemCargo", "_weaponCargo", "_magazineCargo", "_backpackCargo"];
 
+// Preserve nested container contents (the cargo model below only tracks backpack classes)
+private _savedContainers = everyContainer _object apply {
+    _x params ["_type", "_container"];
+
+    [_type, _container call EFUNC(common,serializeInventory)]
+};
+
 clearItemCargoGlobal _object;
 clearWeaponCargoGlobal _object;
 clearMagazineCargoGlobal _object;
@@ -50,3 +57,16 @@ _backpackCargo params ["_backpackTypes", "_backpackCounts"];
 {
     _object addBackpackCargoGlobal [_x, _backpackCounts select _forEachIndex];
 } forEach _backpackTypes;
+
+// Restore preserved contents into the re-added backpacks, matching (and consuming) by class
+private _allContainers = everyContainer _object;
+
+{
+    _x params ["_type", "_containerData"];
+
+    private _index = _allContainers findIf {_x select 0 == _type};
+    if (_index != -1) then {
+        private _container = (_allContainers deleteAt _index) select 1;
+        [_container, _containerData] call EFUNC(common,deserializeInventory);
+    };
+} forEach _savedContainers;
